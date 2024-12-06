@@ -6,6 +6,7 @@ import { User } from "../domain/User";
 import { LoggedUser } from "../domain/LoggedUser";
 import { sendResponse } from "../util/sendResponse";
 import { validateCredentials } from "../helper/userControllerHelper";
+import { generateCookie, removeCookie } from "../util/cookieUtil";
 
 dotenv.config();
 const SECRET_KEY = String(process.env.SECRET_KEY);
@@ -38,6 +39,7 @@ export const loginUser = async (req: Request, res: Response) => {
     const user = await login(email, password);
     const { id, username } = user;
     const token = jwt.sign(user, SECRET_KEY, { expiresIn: "1h" });
+    generateCookie(res, token);
     const loggedUser: LoggedUser = {
       id,
       username,
@@ -56,4 +58,8 @@ export const loginUser = async (req: Request, res: Response) => {
       `[userController] Error al iniciar sesión. Detalles: ${error.message}`,
     );
   }
+};
+
+export const logoutUser = async (_req: Request, res: Response) => {
+  removeCookie(res);
 };
