@@ -1,22 +1,27 @@
 import { pool } from "../database/pool";
 import { User } from "../domain/User";
-import { v4 } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { hash, compare } from "bcrypt";
 import { authUser } from "../domain/authUser";
 
-const SALT_ROUNDS = 20;
+const SALT_ROUNDS = 10;
 
 export const register = async (newUser: User) => {
   const { username, email, password } = newUser;
-  const id = v4();
-  const hashedPassord = await hash(password, SALT_ROUNDS);
+  const id = uuidv4();
+  const hashedPassword = await hash(password, SALT_ROUNDS);
   const query =
-    "INSERT INTO users (username, email, password) VALUES ($1, $2, $3, $4)";
-  const values = [id, username, email, hashedPassord];
+    "INSERT INTO users (id, username, email, password) VALUES ($1, $2, $3, $4)";
+  const values = [id, username, email, hashedPassword];
 
   try {
-    const response = await pool.query(query, values);
-    const result = response.rows;
+    await pool.query(query, values);
+    const result: User = {
+      id,
+      username,
+      email,
+      password: hashedPassword,
+    };
     return result;
   } catch (error: any) {
     throw new Error(
@@ -46,7 +51,7 @@ export const login = async (email: string, password: string) => {
   if (!userExists)
     throw new Error(`[userService] Usuario de email: ${email} no registrado`);
 
-  const isPasswordValid = await compare(password, userExists.password); // Comparar las contraseñas de forma segura
+  const isPasswordValid = await compare(password, userExists.password);
   if (!isPasswordValid) {
     throw new Error(
       `[userService] Credenciales de inicio de sesión incorrectas`,
