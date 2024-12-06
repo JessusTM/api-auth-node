@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import { login, register } from "../service/userService";
 import { User } from "../domain/User";
 import { LoggedUser } from "../domain/LoggedUser";
+import { sendResponse } from "../util/sendResponse";
+import { validateCredentials } from "../helper/userControllerHelper";
 
 dotenv.config();
 const SECRET_KEY = String(process.env.SECRET_KEY);
@@ -12,30 +14,25 @@ export const registerUser = async (req: Request, res: Response) => {
   const newUser: User = req.body;
   try {
     const registeredUser = await register(newUser);
-    res.status(201).json({
-      status: "Éxito",
-      message: "[userController] Usuario registrado correctamente",
-      user: registeredUser,
-    });
+    sendResponse(
+      res,
+      201,
+      "[userController] Usuario registrado correctamente",
+      registeredUser,
+    );
   } catch (error: any) {
-    res.status(400).json({
-      status: "Error",
-      message: "[userControler] No se pudo procesar la solicitud de registro",
-      error: error.message,
-    });
+    sendResponse(
+      res,
+      400,
+      `[userControler] No se pudo procesar la solicitud de registro. Detalles: ${error.message}`,
+    );
   }
 };
 
 export const loginUser = async (req: Request, res: Response) => {
   const credentials = req.body;
   const { email, password } = credentials;
-
-  if (!email || !password) {
-    res.status(400).json({
-      status: "Error",
-      message: "[userController] Credenciales vacías",
-    });
-  }
+  validateCredentials(res, email, password);
 
   try {
     const user = await login(email, password);
@@ -46,16 +43,17 @@ export const loginUser = async (req: Request, res: Response) => {
       username,
       token,
     };
-    res.status(200).json({
-      status: "Éxito",
-      message: "[userController] Inicio de sesión exitoso",
-      user: loggedUser,
-    });
+    sendResponse(
+      res,
+      200,
+      "[userController] Inicio de sesión exitoso",
+      loggedUser,
+    );
   } catch (error: any) {
-    res.status(400).json({
-      status: "Error",
-      message: `[userController] Error al iniciar sesión`,
-      error: error.message,
-    });
+    sendResponse(
+      res,
+      400,
+      `[userController] Error al iniciar sesión. Detalles: ${error.message}`,
+    );
   }
 };
