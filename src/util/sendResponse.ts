@@ -9,6 +9,6 @@ export const sendResponse = (
   res.status(status).json({
     status: status === 200 || status === 201 ? "Éxito" : "Error",
     message,
-    ...data,
+    ...(typeof data === "object" ? data : { data }),
   });
 };
