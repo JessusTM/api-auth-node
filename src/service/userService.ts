@@ -1,28 +1,29 @@
+import { hash } from "bcrypt";
+import { v4 as uuidv4 } from "uuid";
+import dotenv from "dotenv";
 import { pool } from "../database/pool";
 import { User } from "../domain/User";
-import { v4 as uuidv4 } from "uuid";
-import { hash, compare } from "bcrypt";
 import { authUser } from "../domain/authUser";
+import {
+  validatePassword,
+  validateUserExists,
+} from "../helper/userServiceHelper";
 
-const SALT_ROUNDS = 10;
+dotenv.config();
+const SALT_ROUNDS = String(process.env.SALT_ROUNDS);
 
 export const register = async (newUser: User) => {
-  const { username, email, password } = newUser;
-  const id = uuidv4();
-  const hashedPassword = await hash(password, SALT_ROUNDS);
-  const query =
-    "INSERT INTO users (id, username, email, password) VALUES ($1, $2, $3, $4)";
-  const values = [id, username, email, hashedPassword];
-
   try {
-    await pool.query(query, values);
-    const result: User = {
-      id,
-      username,
-      email,
-      password: hashedPassword,
-    };
-    return result;
+    const { username, email, password } = newUser;
+    const hashedPassword = await hash(password, SALT_ROUNDS);
+    const id = uuidv4();
+
+    await pool.query(
+      "INSERT INTO users (id, username, email, password) VALUES ($1, $2, $3, $4)",
+      [id, username, email, hashedPassword],
+    );
+
+    return { id, username, email, password: hashedPassword } as User;
   } catch (error: any) {
     throw new Error(
       `[userService] Error al intentar registrar el usuario en la base de datos. Detalles: ${error.message}`,
@@ -31,39 +32,25 @@ export const register = async (newUser: User) => {
 };
 
 export const findByEmail = async (email: string) => {
-  const query = "SELECT * FROM users WHERE email = $1";
-  const value = [email];
-
   try {
-    const usersList = await pool.query(query, value);
-    const result = usersList.rows[0];
-    return result;
+    const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
+    return rows[0];
   } catch (error: any) {
     throw new Error(
-      `[userService] Error al intentar obtener el usuario con el email '${email}'. Detalles: ${error.message}`,
+      `[userService] Error al buscar el usuario con el email '${email}'. Detalles: ${error.message}`,
     );
   }
 };
 
 export const login = async (email: string, password: string) => {
-  const userExists = await findByEmail(email);
-
-  if (!userExists)
-    throw new Error(`[userService] Usuario de email: ${email} no registrado`);
-
-  const isPasswordValid = await compare(password, userExists.password);
-  if (!isPasswordValid) {
-    throw new Error(
-      `[userService] Credenciales de inicio de sesión incorrectas`,
-    );
-  }
-
   try {
-    const loggedUser: authUser = {
-      id: userExists.id,
-      username: userExists.username,
-    };
-    return loggedUser;
+    const userExists = await findByEmail(email);
+    validateUserExists(userExists);
+    validatePassword(password, userExists);
+
+    return { id: userExists.id, username: userExists.username } as authUser;
   } catch (error: any) {
     throw new Error(
       `[userService] Error al intentar iniciar sesión. Detalles: ${error.message}`,
